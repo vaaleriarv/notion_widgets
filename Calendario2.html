@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Widget - Notion</title>
+    <style>
+        :root {
+            --main-color: #FF8AB5;
+            --hover-color: #FFB8D2;
+            --bg-color: #ffffff;
+            --text-color: #555555;
+            --header-text: #ffffff;
+        }
+
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: transparent; 
+            margin: 0; 
+            display: flex;
+            justify-content: center;
+        }
+
+        #calendari { font-size: 14px; position: relative; }
+
+        table { 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            box-shadow: 0px 1px 3px rgba(0,0,0,0.2); 
+            background-color: var(--bg-color); 
+            width: 280px; /* Tamaño optimizado para Notion */
+        }
+
+        td, th { text-align: center; background-color: var(--bg-color); color: var(--text-color); }
+        
+        th { 
+            padding: 10px; 
+            background-color: var(--main-color); 
+            color: var(--header-text);
+            border-top: 1px solid rgba(0,0,0,0.1); 
+            border-right: 1px solid rgba(0,0,0,0.1); 
+        }
+
+        td>span { padding: 8px; display: block; border: 2px solid transparent; transition: border 0.3s ease; cursor: default; }
+        
+        td.avui>span { 
+            font-weight: bold; 
+            background-color: var(--main-color); 
+            color: var(--header-text); 
+            border: 2px solid rgba(0,0,0,0.1); 
+        }
+
+        td > span:hover { background: var(--hover-color); color: #fff; }
+        td.fora > span { opacity: 0.3; }
+
+        .boto-next, .boto-prev { 
+            background: rgba(0,0,0,0.1); 
+            color: var(--header-text); 
+            border: none; font-size: 18px; border-radius: 100%; 
+            position: absolute; top: 15px; cursor: pointer;
+            z-index: 10; width: 30px; height: 30px;
+        }
+        .boto-next { right: 10px; } .boto-prev { left: 10px; }
+    </style>
+</head>
+<body>
+    <div id="calendari"></div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        const colorParam = urlParams.get('color');
+        if (colorParam) {
+            const newColor = colorParam.startsWith('#') ? colorParam : '#' + colorParam;
+            document.documentElement.style.setProperty('--main-color', newColor);
+            document.documentElement.style.setProperty('--hover-color', newColor + '80'); 
+        }
+
+        const mode = urlParams.get('mode');
+        if (mode === 'dark') {
+            document.documentElement.style.setProperty('--bg-color', '#191919');
+            document.documentElement.style.setProperty('--text-color', '#eeeeee');
+        }
+
+        var mesos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        var dies_abr = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+
+        Number.prototype.pad = function(num) {
+            var str = '';
+            for(var i = 0; i < (num-this.toString().length); i++) str += '0';
+            return str += this.toString();
+        }
+
+        function calendari(widget, data) {
+            var original = widget.getElementsByClassName('actiu')[0];
+            
+            var e = document.createElement('table');
+            e.className = 'actiu';
+            widget.appendChild(e);
+
+            // Titulo (Mes y Año)
+            var fila = document.createElement('tr');
+            var titol = document.createElement('th');
+            titol.setAttribute('colspan', 7);
+
+            var boto_prev = document.createElement('button');
+            boto_prev.className = 'boto-prev'; boto_prev.innerHTML = '&#9666;';
+            var boto_next = document.createElement('button');
+            boto_next.className = 'boto-next'; boto_next.innerHTML = '&#9656;';
+
+            titol.appendChild(boto_prev);
+            titol.appendChild(document.createElement('span')).innerHTML = mesos[data.getMonth()] + '<span style="font-size:11px; display:block; opacity:0.8; font-weight:normal;">' + data.getFullYear() + '</span>';
+            titol.appendChild(boto_next);
+
+            boto_prev.onclick = function() { data.setMonth(data.getMonth() - 1); calendari(widget, data); };
+            boto_next.onclick = function() { data.setMonth(data.getMonth() + 1); calendari(widget, data); };
+
+            fila.appendChild(titol); e.appendChild(fila);
+
+            // Días de la semana
+            fila = document.createElement('tr');
+            for(var i = 0; i < 7; i++) { 
+                fila.innerHTML += '<th>' + dies_abr[i] + '</th>'; 
+            }
+            e.appendChild(fila);
+
+            // Lógica para empezar en LUNES
+            var primerDiaMes = new Date(data.getFullYear(), data.getMonth(), 1).getDay();
+            var indiceLunes = (primerDiaMes === 0) ? 7 : primerDiaMes;
+            var actual = new Date(data.getFullYear(), data.getMonth(), 1 - (indiceLunes - 1));
+
+            for(var s = 0; s < 6; s++) {
+                var fila_d = document.createElement('tr');
+                for(var d = 0; d < 7; d++) {
+                    var cela = document.createElement('td');
+                    var span = document.createElement('span');
+                    span.innerHTML = actual.getDate();
+                    
+                    if(actual.getMonth() !== data.getMonth()) cela.className = 'fora';
+                    
+                    // Marcar HOY
+                    var hoy = new Date();
+                    if(hoy.getDate() == actual.getDate() && hoy.getMonth() == actual.getMonth() && hoy.getFullYear() == actual.getFullYear()) {
+                        cela.className = 'avui';
+                    }
+
+                    actual.setDate(actual.getDate() + 1);
+                    cela.appendChild(span); 
+                    fila_d.appendChild(cela);
+                }
+                e.appendChild(fila_d);
+            }
+            if(original) original.remove();
+        }
+
+        calendari(document.getElementById('calendari'), new Date());
+    </script>
+</body>
+</html>
